@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="et"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Itaalia rääkimine</title>
+<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#2D5C7A"><link rel="icon" href="icon-192.png">
+<style>
+:root{--bg:#F6F1E4;--bg2:#EFE8D6;--ink:#26393B;--soft:#5B6B69;--blue:#2D5C7A;--ok:#3E5636;--okbg:#DDEBD6;--al:#8A5F16;--albg:#F7E8C4;--bad:#9C3B22;--badbg:#F5D9CF;--line:rgba(38,57,59,.18)}
+@media(prefers-color-scheme:dark){:root{--bg:#1c2426;--bg2:#263234;--ink:#E8E4D8;--soft:#9FB0AD;--blue:#6FA6C6;--ok:#9CC98E;--okbg:#2B3F27;--al:#E6BE6A;--albg:#473A1B;--bad:#F0A58E;--badbg:#4A2A20;--line:rgba(232,228,216,.2)}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,sans-serif}
+.w{max-width:640px;margin:0 auto;padding:18px 16px 60px}h1{font-size:24px;margin:0 0 4px;color:var(--blue)}h2{font-size:15px;margin:22px 0 8px;color:var(--soft);text-transform:uppercase;letter-spacing:.04em}
+.sub{color:var(--soft);margin:0 0 14px;font-size:14px}
+button,select{font:inherit;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg2);color:var(--ink)}
+button.main{background:var(--blue);color:#fff;border-color:var(--blue)}button.big{width:100%;padding:16px;font-size:18px;margin:8px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.row>*{flex:1}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:16px;margin:10px 0}
+.et{font-size:24px;font-weight:600;margin:6px 0 12px}.it{font-size:20px;font-weight:600;color:var(--blue)}.pron{color:var(--soft);font-size:14px}
+.stat{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+.pct{font-size:42px;font-weight:700;color:var(--blue)}
+.v{padding:10px 12px;border-radius:10px;margin:10px 0;font-weight:600}.v.ok{background:var(--okbg);color:var(--ok)}.v.al{background:var(--albg);color:var(--al)}.v.bad{background:var(--badbg);color:var(--bad)}
+input[type=text]{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);font:inherit;background:var(--bg);color:var(--ink)}
+.bar{height:6px;background:var(--bg);border-radius:4px;overflow:hidden;margin:4px 0 10px}.bar i{display:block;height:100%;background:var(--ok)}
+.mic{font-size:22px}small{color:var(--soft)}label{display:block;margin:8px 0;font-size:14px}
+</style></head><body><div class="w" id="app"></div>
+<script>
+const KEY='itaalia-aap-v1';
+let D=load(),R=null,rec=null;
+function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.prog)return d}catch(e){}return{lessons:null,prog:{},at:null}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){alert('Salvestamine ebaõnnestus (mälu täis?)')}}
+const $=id=>document.getElementById(id),app=$('app');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const plain=h=>{const t=document.createElement('div');t.innerHTML=h||'';t.querySelectorAll('.myth-hint').forEach(e=>e.remove());return t.textContent.trim()};
+/* ---- import õpikufailist ---- */
+function extract(txt){const m=txt.indexOf('const lessons = ');if(m<0)throw new Error('See ei ole õpikufail');const i=txt.indexOf('{',m);let d=0,s=false,e=false,j=i;
+ for(;j<txt.length;j++){const c=txt[j];if(s){if(e)e=false;else if(c==='\\')e=true;else if(c==='"')s=false}else if(c==='"')s=true;else if(c==='{')d++;else if(c==='}'){d--;if(!d)break}}
+ return JSON.parse(txt.slice(i,j+1))}
+async function importJournal(f){try{const L=extract(await f.text()),out={};let n=0;
+ for(const k of Object.keys(L)){const l=L[k];if(l.isReference||!l.phrases)continue;
+  out[k]={tab:l.tabLabel||l.title||k,count:!l.excludeFromCount,cards:l.phrases.filter(p=>p.it&&p.et).map(p=>({id:p.id,it:plain(p.it),et:plain(p.et),pron:p.pron||''}))};n+=out[k].cards.length}
+ D.lessons=out;D.at=new Date().toLocaleDateString('et-EE');save();home('Imporditud: '+n+' kaarti, '+Object.keys(out).length+' lehte. Tulemused säilisid.')}catch(e){home('Import ebaõnnestus: '+e.message)}}
+/* ---- hindamine (sama loogika mis õpiku 🎤 harjutuses) ---- */
+const ART=new Set(['il','lo','la','l','i','gli','le','un','uno','una']);
+const NUM={0:'zero',1:'uno',2:'due',3:'tre',4:'quattro',5:'cinque',6:'sei',7:'sette',8:'otto',9:'nove',10:'dieci',11:'undici',12:'dodici',13:'tredici',14:'quattordici',15:'quindici',16:'sedici',17:'diciassette',18:'diciotto',19:'diciannove',20:'venti',30:'trenta',40:'quaranta',50:'cinquanta',60:'sessanta',70:'settanta',80:'ottanta',90:'novanta',100:'cento'};
+const toks=s=>String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(Boolean).map(t=>(/^\d+$/.test(t)&&NUM[t])?NUM[t]:t);
+const lev=(a,b)=>{const d=Array.from({length:a.length+1},(_,i)=>[i]);for(let j=1;j<=b.length;j++)d[0][j]=j;for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[a.length][b.length]};
+const noArt=t=>{const r=t.slice();while(r.length>1&&ART.has(r[0]))r.shift();return r};
+const sim=(a,b)=>{const x=a.join(' '),y=b.join(' ');if(!x||!y)return 0;return 1-lev(x,y)/Math.max(x.length,y.length)};
+const variants=it=>it.replace(/\([^)]*\)/g,' ').replace(/\.\.\./g,' ').split('/').map(s=>s.trim()).filter(Boolean);
+function judge(heard,card){let best=0,bh=heard[0]||'';for(const h of heard){const ht=toks(h);for(const v of variants(card.it)){const vt=toks(v);if(!vt.length||!ht.length)continue;
+ let s=Math.max(sim(vt,ht),sim(noArt(vt),noArt(ht)));const nv=noArt(vt),nh=noArt(ht),f=nv.filter(w=>nh.includes(w)).length/nv.length;
+ if(f===1)s=Math.max(s,.95);else if(nv.length>=3)s=Math.max(s,.9*f);if(s>best){best=s;bh=h}}}
+ return{v:best>=.85?'ok':best>=.6?'al':'bad',heard:bh}}
+/* ---- statistika ---- */
+const P=id=>D.prog[id]||(D.prog[id]={ok:0,tried:0});
+function stats(keys){let ok=0,tried=0,cards=0,mast=0;for(const k of keys)for(const c of D.lessons[k].cards){cards++;const p=D.prog[c.id];if(p){ok+=p.ok;tried+=p.tried;if(p.ok>0)mast++}}return{ok,tried,cards,mast,pct:tried?Math.round(100*ok/tried):0}}
+const counted=()=>Object.keys(D.lessons).filter(k=>D.lessons[k].count);
+/* ---- avaekraan ---- */
+function home(msg){stopAll();R=null;
+ if(!D.lessons){app.innerHTML=`<h1>🎤 Itaalia rääkimine</h1><p class="sub">Esmalt vaja õpikufaili.</p>${msg?`<div class="v al">${esc(msg)}</div>`:''}<div class="card"><p>Vali telefonist fail <b>italian-journal.html</b> (Allalaadimiste kaustast).</p><input type="file" id="f" accept=".html,text/html"></div>`;$('f').onchange=e=>e.target.files[0]&&importJournal(e.target.files[0]);return}
+ const ks=counted(),S=stats(ks);
+ const opts=`<option value="*">Kõik arvestatavad lehed</option>`+Object.keys(D.lessons).map(k=>`<option value="${k}">${esc(D.lessons[k].tab)}${D.lessons[k].count?'':' (ei arvestata)'}</option>`).join('');
+ const rows=ks.map(k=>{const s=stats([k]);return`<div class="stat"><span>${esc(D.lessons[k].tab)}</span><span>${s.mast}/${s.cards} · ${s.pct}%</span></div>`}).join('');
+ app.innerHTML=`<h1>🎤 Itaalia rääkimine</h1><p class="sub">Õpikufail imporditud ${D.at||''}</p>${msg?`<div class="v ok">${esc(msg)}</div>`:''}
+ <div class="card"><div class="pct">${S.pct}%</div><div>õigeid vastuseid (${S.ok} / ${S.tried} katsest)</div><div class="bar"><i style="width:${S.cards?100*S.mast/S.cards:0}%"></i></div><small>Vähemalt korra õigesti öeldud: ${S.mast} / ${S.cards} kaarti (arvestatavad lehed)</small></div>
+ <select id="sc" style="width:100%">${opts}</select><label><input type="checkbox" id="td"> Ainult need, mida pole veel õigesti öelnud</label>
+ <button class="main big" onclick="start()">Alusta (10 kaarti)</button>
+ <h2>Lehtede kaupa (arvestatavad)</h2>${rows}
+ <h2>Haldus</h2><div class="row"><label style="flex:1">Uus õpikufail:<input type="file" id="f" accept=".html,text/html"></label></div>
+ <div class="row"><button onclick="expP()">⬇️ Salvesta tulemused faili</button><label style="flex:1;margin:0">Lae tulemused:<input type="file" id="fp" accept=".json"></label></div>
+ <div class="row"><button onclick="if(confirm('Nullida kõik tulemused?')){D.prog={};save();home('Tulemused nullitud.')}">Nulli tulemused</button></div>`;
+ $('f').onchange=e=>e.target.files[0]&&importJournal(e.target.files[0]);$('fp').onchange=e=>e.target.files[0]&&impP(e.target.files[0])}
+function expP(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(D.prog)],{type:'application/json'}));a.download='itaalia-tulemused.json';a.click()}
+async function impP(f){try{const o=JSON.parse(await f.text());for(const id in o){const p=P(id);p.ok=Math.max(p.ok,o[id].ok||0);p.tried=Math.max(p.tried,o[id].tried||0)}save();home('Tulemused laetud.')}catch(e){home('Faili lugemine ebaõnnestus.')}}
+/* ---- harjutus ---- */
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+function start(){const sc=$('sc').value,td=$('td').checked;const ks=sc==='*'?counted():[sc];const seen=new Set(),pool=[];
+ for(const k of ks)for(const c of D.lessons[k].cards){if(td&&D.prog[c.id]&&D.prog[c.id].ok>0)continue;const key=toks(c.it).join(' ');if(seen.has(key))continue;seen.add(key);pool.push(c)}
+ if(!pool.length)return home('Selles valikus pole kaarte (kõik juba õigesti öeldud?).');
+ R={pool:shuffle(pool),ptr:0,sc,td};round()}
+function round(){R.cards=[];for(let n=0;n<10;n++){if(R.ptr>=R.pool.length){shuffle(R.pool);R.ptr=0;if(n>=R.pool.length)break}R.cards.push(R.pool[R.ptr++])}R.i=0;R.ok=0;ask()}
+function ask(){stopAll();R.att=null;if(R.i>=R.cards.length)return done();const c=R.cards[R.i];
+ app.innerHTML=`<small>Kaart ${R.i+1} / ${R.cards.length} · õigesti ${R.ok}</small><div class="card"><div class="et">${esc(c.et)}</div><button class="main big" onclick="listen()"><span class="mic">🎤</span> Ütle itaalia keeles</button><small id="st">Vajuta ja räägi.</small>
+ <div class="row"><input type="text" id="tx" placeholder="…või kirjuta / dikteeri siia" autocapitalize="off" autocorrect="off"><button onclick="grade([$('tx').value])" style="flex:none">Hinda</button></div></div><div id="res"></div>
+ <div class="row"><button onclick="reveal()">Näita vastust</button><button onclick="R.i++;ask()">Jäta vahele</button><button onclick="home()">Lõpeta</button></div>`;
+ $('tx').addEventListener('keydown',e=>{if(e.key==='Enter')grade([$('tx').value])})}
+function listen(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){$('st').textContent='Kõnetuvastust pole, kasuta tekstivälja.';return}
+ stopAll();const r=new SR();r.lang='it-IT';r.maxAlternatives=3;r.interimResults=false;rec=r;$('st').textContent='Kuulan… räägi nüüd.';
+ r.onresult=e=>grade([...e.results[0]].map(x=>x.transcript));
+ r.onerror=e=>{$('st').textContent=e.error==='not-allowed'?'Mikrofon pole lubatud (Chrome → Saidi seaded → Mikrofon).':'Ei kuulnud midagi, proovi uuesti.'};
+ r.onend=()=>{if(rec===r&&$('st')&&$('st').textContent.startsWith('Kuulan'))$('st').textContent='Ei kuulnud midagi, proovi uuesti.'};
+ try{r.start()}catch(e){}}
+function grade(h){h=h.filter(x=>x&&x.trim());if(!h.length)return;const c=R.cards[R.i],j=judge(h,c),p=P(c.id);p.tried++;if(j.v==='ok')p.ok++;R.att={ok:j.v==='ok'};save();
+ const t={ok:'✓ Õige',al:'≈ Peaaegu',bad:'✗ Vale'}[j.v];
+ $('res').innerHTML=`<div class="v ${j.v}">${t}<br><small>Kuulsin: ${esc(j.heard)}</small></div>${ans(c)}<div class="row"><button onclick="markOk()">Ütlesin õigesti</button><button onclick="ask()">Proovi uuesti</button><button class="main" onclick="next()">Järgmine →</button></div>`}
+function ans(c){return`<div class="card"><div class="it">${esc(c.it)} <button onclick="say()">🔊</button></div><div class="pron">${esc(c.pron)}</div></div>`}
+function reveal(){const c=R.cards[R.i];$('res').innerHTML=ans(c)+`<div class="row"><button onclick="ask()">Proovi uuesti</button><button class="main" onclick="next()">Järgmine →</button></div>`}
+function markOk(){const c=R.cards[R.i],p=P(c.id);if(!R.att){p.tried++;p.ok++;R.att={ok:true}}else if(!R.att.ok){p.ok++;R.att.ok=true}save();next()}
+function next(){if(R.att&&R.att.ok)R.ok++;R.i++;ask()}
+function say(){if(!('speechSynthesis' in window))return;const u=new SpeechSynthesisUtterance(variants(R.cards[R.i].it)[0]);u.lang='it-IT';u.rate=.85;speechSynthesis.cancel();speechSynthesis.speak(u)}
+function stopAll(){try{if(rec){rec.onresult=rec.onerror=rec.onend=null;rec.abort()}}catch(e){}rec=null;if('speechSynthesis' in window)speechSynthesis.cancel()}
+function done(){const n=R.cards.length;app.innerHTML=`<h1>Voor läbi</h1><div class="card"><div class="pct">${n?Math.round(100*R.ok/n):0}%</div><div>${R.ok} / ${n} õigesti</div></div><button class="main big" onclick="round()">Veel 10</button><button class="big" onclick="home()">Avaleht ja statistika</button>`}
+home();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script></body></html>
