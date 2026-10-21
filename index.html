@@ -19,7 +19,7 @@ button.main{background:var(--blue);color:#fff;border-color:var(--blue)}button.bi
 .v{padding:10px 12px;border-radius:10px;margin:10px 0;font-weight:600}.v.ok{background:var(--okbg);color:var(--ok)}.v.al{background:var(--albg);color:var(--al)}.v.bad{background:var(--badbg);color:var(--bad)}
 input[type=text]{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);font:inherit;background:var(--bg);color:var(--ink)}
 .bar{height:6px;background:var(--bg);border-radius:4px;overflow:hidden;margin:4px 0 10px}.bar i{display:block;height:100%;background:var(--ok)}
-.mic{font-size:22px}small{color:var(--soft)}label{display:block;margin:8px 0;font-size:14px}
+.mic{font-size:22px}small{color:var(--soft)}.grp{font-size:12px;color:var(--soft);text-transform:uppercase;letter-spacing:.05em}.lit{font-style:italic;color:var(--blue);margin:-6px 0 12px}.note{font-size:13px;color:var(--blue);background:var(--bg);border-left:3px solid var(--blue);padding:6px 9px;margin-top:8px;border-radius:4px}.ex{font-size:14px;margin-top:8px;color:var(--soft)}label{display:block;margin:8px 0;font-size:14px}
 </style></head><body><div class="w" id="app"></div>
 <script>
 const KEY='itaalia-aap-v1';
@@ -35,8 +35,8 @@ function extract(txt){const m=txt.indexOf('const lessons = ');if(m<0)throw new E
  return JSON.parse(txt.slice(i,j+1))}
 async function importJournal(f){try{const L=extract(await f.text()),out={};let n=0;
  for(const k of Object.keys(L)){const l=L[k];if(l.isReference||!l.phrases)continue;
-  out[k]={tab:l.tabLabel||l.title||k,count:!l.excludeFromCount,cards:l.phrases.filter(p=>p.it&&p.et).map(p=>({id:p.id,it:plain(p.it),et:plain(p.et),pron:p.pron||''}))};n+=out[k].cards.length}
- D.lessons=out;D.at=new Date().toLocaleDateString('et-EE');save();home('Imporditud: '+n+' kaarti, '+Object.keys(out).length+' lehte. Tulemused säilisid.')}catch(e){home('Import ebaõnnestus: '+e.message)}}
+  out[k]={tab:l.tabLabel||l.title||k,count:!l.excludeFromCount,cards:l.phrases.filter(p=>p.it&&p.et).map(p=>({id:p.id,it:plain(p.it),et:plain(p.et),pron:p.pron||'',lit:plain(p.lit),group:plain(p.group),spoiler:plain(p.spoiler),ex:plain(p.ex)}))};n+=out[k].cards.length}
+ D.lessons=out;D.at=new Date().toLocaleDateString('et-EE');D.v=2;save();home('Imporditud: '+n+' kaarti, '+Object.keys(out).length+' lehte. Tulemused säilisid.')}catch(e){home('Import ebaõnnestus: '+e.message)}}
 /* ---- hindamine (sama loogika mis õpiku 🎤 harjutuses) ---- */
 const ART=new Set(['il','lo','la','l','i','gli','le','un','uno','una']);
 const NUM={0:'zero',1:'uno',2:'due',3:'tre',4:'quattro',5:'cinque',6:'sei',7:'sette',8:'otto',9:'nove',10:'dieci',11:'undici',12:'dodici',13:'tredici',14:'quattordici',15:'quindici',16:'sedici',17:'diciassette',18:'diciotto',19:'diciannove',20:'venti',30:'trenta',40:'quaranta',50:'cinquanta',60:'sessanta',70:'settanta',80:'ottanta',90:'novanta',100:'cento'};
@@ -57,11 +57,11 @@ const counted=()=>Object.keys(D.lessons).filter(k=>D.lessons[k].count);
 function home(msg){stopAll();R=null;
  if(!D.lessons){app.innerHTML=`<h1>🎤 Itaalia rääkimine</h1><p class="sub">Esmalt vaja õpikufaili.</p>${msg?`<div class="v al">${esc(msg)}</div>`:''}<div class="card"><p>Vali telefonist fail <b>italian-journal.html</b> (Allalaadimiste kaustast).</p><input type="file" id="f" accept=".html,text/html"></div>`;$('f').onchange=e=>e.target.files[0]&&importJournal(e.target.files[0]);return}
  const ks=counted(),S=stats(ks);
- const opts=`<option value="*">Kõik arvestatavad lehed</option>`+Object.keys(D.lessons).map(k=>`<option value="${k}">${esc(D.lessons[k].tab)}${D.lessons[k].count?'':' (ei arvestata)'}</option>`).join('');
+ const O=D.opt||{};const opts=`<option value="*">Kõik arvestatavad lehed</option>`+Object.keys(D.lessons).map(k=>`<option value="${k}"${O.sc===k?' selected':''}>${esc(D.lessons[k].tab)}${D.lessons[k].count?'':' (ei arvestata)'}</option>`).join('');
  const rows=ks.map(k=>{const s=stats([k]);return`<div class="stat"><span>${esc(D.lessons[k].tab)}</span><span>${s.mast}/${s.cards} · ${s.pct}%</span></div>`}).join('');
- app.innerHTML=`<h1>🎤 Itaalia rääkimine</h1><p class="sub">Õpikufail imporditud ${D.at||''}</p>${msg?`<div class="v ok">${esc(msg)}</div>`:''}
+ app.innerHTML=`<h1>🎤 Itaalia rääkimine</h1><p class="sub">Õpikufail imporditud ${D.at||''}</p>${msg?`<div class="v ok">${esc(msg)}</div>`:''}${D.v!==2?'<div class="v al">Vali all „Uus õpikufail“ uuesti, siis tulevad kaardile toortõlge, grupp ja märkused. Tulemused säilivad.</div>':''}
  <div class="card"><div class="pct">${S.pct}%</div><div>õigeid vastuseid (${S.ok} / ${S.tried} katsest)</div><div class="bar"><i style="width:${S.cards?100*S.mast/S.cards:0}%"></i></div><small>Vähemalt korra õigesti öeldud: ${S.mast} / ${S.cards} kaarti (arvestatavad lehed)</small></div>
- <select id="sc" style="width:100%">${opts}</select><label><input type="checkbox" id="td"> Ainult need, mida pole veel õigesti öelnud</label>
+ <select id="sc" style="width:100%">${opts}</select><select id="md" style="width:100%;margin-top:8px"><option value="s">Nutikas valik (uued ja nõrgad sagedamini)</option><option value="r"${O.md==='r'?' selected':''}>Juhuslik</option></select><label><input type="checkbox" id="td"${O.td?' checked':''}> Ainult need, mida pole veel õigesti öelnud</label>
  <button class="main big" onclick="start()">Alusta (10 kaarti)</button>
  <h2>Lehtede kaupa (arvestatavad)</h2>${rows}
  <h2>Haldus</h2><div class="row"><label style="flex:1">Uus õpikufail:<input type="file" id="f" accept=".html,text/html"></label></div>
@@ -72,31 +72,53 @@ function expP(){const a=document.createElement('a');a.href=URL.createObjectURL(n
 async function impP(f){try{const o=JSON.parse(await f.text());for(const id in o){const p=P(id);p.ok=Math.max(p.ok,o[id].ok||0);p.tried=Math.max(p.tried,o[id].tried||0)}save();home('Tulemused laetud.')}catch(e){home('Faili lugemine ebaõnnestus.')}}
 /* ---- harjutus ---- */
 const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
-function start(){const sc=$('sc').value,td=$('td').checked;const ks=sc==='*'?counted():[sc];const seen=new Set(),pool=[];
+function start(){const sc=$('sc').value,td=$('td').checked;D.opt={sc,td,md:$('md').value};save();const ks=sc==='*'?counted():[sc];const seen=new Set(),pool=[];
  for(const k of ks)for(const c of D.lessons[k].cards){if(td&&D.prog[c.id]&&D.prog[c.id].ok>0)continue;const key=toks(c.it).join(' ');if(seen.has(key))continue;seen.add(key);pool.push(c)}
  if(!pool.length)return home('Selles valikus pole kaarte (kõik juba õigesti öeldud?).');
- R={pool:shuffle(pool),ptr:0,sc,td};round()}
-function round(){R.cards=[];for(let n=0;n<10;n++){if(R.ptr>=R.pool.length){shuffle(R.pool);R.ptr=0;if(n>=R.pool.length)break}R.cards.push(R.pool[R.ptr++])}R.i=0;R.ok=0;ask()}
+ R={pool,smart:$('md').value==='s',sc,td,seen:new Set(),prev:[]};round()}
+/* nutikas valik: uued ja valesti öeldud kaardid saavad suurema kaalu, selgeks saanud harva */
+const wt=c=>{const p=D.prog[c.id];if(!p||!p.tried)return 3;const a=p.ok/p.tried;return Math.max(.25,.3+3.3*(1-a)*(p.ok>=3&&a>=.8?.3:1))};
+function pick(){let used=R.smart?new Set(R.prev):R.seen,c=R.pool.filter(x=>!used.has(x.id));if(c.length<10){R.seen.clear();c=R.pool.slice()}
+ const out=[];for(let n=0;n<10&&c.length;n++){const w=c.map(x=>R.smart?wt(x):1);let r=Math.random()*w.reduce((a,b)=>a+b,0),i=0;while(i<c.length-1&&(r-=w[i])>=0)i++;out.push(c.splice(i,1)[0])}
+ R.prev=out.map(x=>x.id);out.forEach(x=>R.seen.add(x.id));return out}
+function round(){R.cards=pick();R.i=0;R.ok=0;ask()}
 function ask(){stopAll();R.att=null;if(R.i>=R.cards.length)return done();const c=R.cards[R.i];
- app.innerHTML=`<small>Kaart ${R.i+1} / ${R.cards.length} · õigesti ${R.ok}</small><div class="card"><div class="et">${esc(c.et)}</div><button class="main big" onclick="listen()"><span class="mic">🎤</span> Ütle itaalia keeles</button><small id="st">Vajuta ja räägi.</small>
+ app.innerHTML=`<small>Kaart ${R.i+1} / ${R.cards.length} · õigesti ${R.ok}</small><div class="card">${c.group?`<div class="grp">${esc(c.group)}</div>`:''}<div class="et">${esc(c.et)}</div>${c.lit?`<div class="lit">/ ${esc(c.lit)}</div>`:''}<button class="main big" onclick="listen()"><span class="mic">🎤</span> Ütle itaalia keeles</button><small id="st">Vajuta ja räägi.</small> <button id="dn" onclick="fin()" style="display:none;padding:6px 12px">Valmis</button>
  <div class="row"><input type="text" id="tx" placeholder="…või kirjuta / dikteeri siia" autocapitalize="off" autocorrect="off"><button onclick="grade([$('tx').value])" style="flex:none">Hinda</button></div></div><div id="res"></div>
  <div class="row"><button onclick="reveal()">Näita vastust</button><button onclick="R.i++;ask()">Jäta vahele</button><button onclick="home()">Lõpeta</button></div>`;
  $('tx').addEventListener('keydown',e=>{if(e.key==='Enter')grade([$('tx').value])})}
-function listen(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){$('st').textContent='Kõnetuvastust pole, kasuta tekstivälja.';return}
- stopAll();const r=new SR();r.lang='it-IT';r.maxAlternatives=3;r.interimResults=false;rec=r;$('st').textContent='Kuulan… räägi nüüd.';
- r.onresult=e=>grade([...e.results[0]].map(x=>x.transcript));
- r.onerror=e=>{$('st').textContent=e.error==='not-allowed'?'Mikrofon pole lubatud (Chrome → Saidi seaded → Mikrofon).':'Ei kuulnud midagi, proovi uuesti.'};
- r.onend=()=>{if(rec===r&&$('st')&&$('st').textContent.startsWith('Kuulan'))$('st').textContent='Ei kuulnud midagi, proovi uuesti.'};
+const SRC=window.SpeechRecognition||window.webkitSpeechRecognition;let acc=[],gap=null,again=false;
+const isSent=c=>variants(c.it).some(v=>noArt(toks(v)).length>=3);
+function cands(){const o=[];for(let k=0;k<3;k++)o.push(acc.map(a=>a[k]||a[0]).join(' ').trim());return[...new Set(o)].filter(Boolean)}
+function listen(){if(!SRC){$('st').textContent='Kõnetuvastust pole, kasuta tekstivälja.';return}stopAll();acc=[];seg(true)}
+/* lause puhul kuulame edasi, kuni vastus on õige, vaikus kestab ~4 s või vajutad „Valmis“ */
+function seg(first){const c=R.cards[R.i],sent=isSent(c),r=new SRC();r.lang='it-IT';r.maxAlternatives=3;r.interimResults=false;rec=r;let got=false;again=false;clearTimeout(gap);
+ $('st').textContent=first?'Kuulan… räägi nüüd.':'Kuulan edasi… (valmis? vajuta „Valmis“)';if(sent)$('dn').style.display='';
+ if(sent&&!first)gap=setTimeout(fin,4000);
+ r.onspeechstart=()=>clearTimeout(gap);
+ r.onresult=e=>{got=true;clearTimeout(gap);acc.push([...e.results[0]].map(x=>x.transcript));if(!sent||judge(cands(),c).v==='ok')fin();else again=true};
+ r.onerror=e=>{clearTimeout(gap);if(rec!==r)return;if(e.error==='no-speech'||e.error==='aborted'){if(acc.length)fin();else $('st').textContent='Ei kuulnud midagi, proovi uuesti.'}else $('st').textContent=e.error==='not-allowed'?'Mikrofon pole lubatud (Chrome → Saidi seaded → Mikrofon).':'Viga: '+e.error};
+ r.onend=()=>{if(rec!==r)return;if(again)seg(false);else if(acc.length)fin();else if(!got&&$('st').textContent.startsWith('Kuulan'))$('st').textContent='Ei kuulnud midagi, proovi uuesti.'};
  try{r.start()}catch(e){}}
+function fin(){clearTimeout(gap);const h=cands();stopAll();acc=[];if($('dn'))$('dn').style.display='none';if(h.length)grade(h);else if($('st'))$('st').textContent='Ei kuulnud midagi, proovi uuesti.'}
 function grade(h){h=h.filter(x=>x&&x.trim());if(!h.length)return;const c=R.cards[R.i],j=judge(h,c),p=P(c.id);p.tried++;if(j.v==='ok')p.ok++;R.att={ok:j.v==='ok'};save();
  const t={ok:'✓ Õige',al:'≈ Peaaegu',bad:'✗ Vale'}[j.v];
  $('res').innerHTML=`<div class="v ${j.v}">${t}<br><small>Kuulsin: ${esc(j.heard)}</small></div>${ans(c)}<div class="row"><button onclick="markOk()">Ütlesin õigesti</button><button onclick="ask()">Proovi uuesti</button><button class="main" onclick="next()">Järgmine →</button></div>`}
-function ans(c){return`<div class="card"><div class="it">${esc(c.it)} <button onclick="say()">🔊</button></div><div class="pron">${esc(c.pron)}</div></div>`}
+function ans(c){return`<div class="card"><div class="it">${esc(c.it)} <button onclick="say()">🔊</button></div><small id="sm"></small><div class="pron">${esc(c.pron)}</div>${c.spoiler?`<div class="note">${esc(c.spoiler)}</div>`:''}${c.ex?`<div class="ex">${esc(c.ex)}</div>`:''}</div>`}
 function reveal(){const c=R.cards[R.i];$('res').innerHTML=ans(c)+`<div class="row"><button onclick="ask()">Proovi uuesti</button><button class="main" onclick="next()">Järgmine →</button></div>`}
 function markOk(){const c=R.cards[R.i],p=P(c.id);if(!R.att){p.tried++;p.ok++;R.att={ok:true}}else if(!R.att.ok){p.ok++;R.att.ok=true}save();next()}
 function next(){if(R.att&&R.att.ok)R.ok++;R.i++;ask()}
-function say(){if(!('speechSynthesis' in window))return;const u=new SpeechSynthesisUtterance(variants(R.cards[R.i].it)[0]);u.lang='it-IT';u.rate=.85;speechSynthesis.cancel();speechSynthesis.speak(u)}
-function stopAll(){try{if(rec){rec.onresult=rec.onerror=rec.onend=null;rec.abort()}}catch(e){}rec=null;if('speechSynthesis' in window)speechSynthesis.cancel()}
+let voices=[];function loadV(){try{voices=speechSynthesis.getVoices()||[]}catch(e){}}
+if('speechSynthesis' in window){loadV();speechSynthesis.onvoiceschanged=loadV}
+function say(){const m=$('sm');const note=t=>{if(m)m.textContent=t};
+ if(!('speechSynthesis' in window)){note('Selles brauseris pole häält.');return}
+ try{if(rec){rec.onresult=rec.onerror=rec.onend=null;rec.abort()}}catch(e){}rec=null;clearTimeout(gap);loadV();
+ const u=new SpeechSynthesisUtterance(variants(R.cards[R.i].it)[0]);u.lang='it-IT';u.rate=.85;u.volume=1;
+ const v=voices.find(x=>/^it[-_]/i.test(x.lang));if(v)u.voice=v;
+ note(v?'Mängin…':voices.length?'Itaalia häält pole telefonis (Seaded → Tekst kõneks → Google → Installi hääleandmed → Itaalia).':'Mängin…');
+ u.onend=()=>{if(v)note('')};u.onerror=e=>note('Heli ei läinud käima ('+(e.error||'viga')+'). Kontrolli meediahelitugevust ja Androidi „Tekst kõneks“ itaalia häält.');
+ speechSynthesis.cancel();setTimeout(()=>{try{speechSynthesis.resume();speechSynthesis.speak(u)}catch(e){note('Heli ei läinud käima.')}},120)}
+function stopAll(){clearTimeout(gap);try{if(rec){rec.onresult=rec.onerror=rec.onend=null;rec.abort()}}catch(e){}rec=null;if('speechSynthesis' in window)speechSynthesis.cancel()}
 function done(){const n=R.cards.length;app.innerHTML=`<h1>Voor läbi</h1><div class="card"><div class="pct">${n?Math.round(100*R.ok/n):0}%</div><div>${R.ok} / ${n} õigesti</div></div><button class="main big" onclick="round()">Veel 10</button><button class="big" onclick="home()">Avaleht ja statistika</button>`}
 home();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
