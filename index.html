@@ -35,7 +35,7 @@ function extract(txt){const m=txt.indexOf('const lessons = ');if(m<0)throw new E
  return JSON.parse(txt.slice(i,j+1))}
 async function importJournal(f){try{const L=extract(await f.text()),out={};let n=0;
  for(const k of Object.keys(L)){const l=L[k];if(l.isReference||!l.phrases)continue;
-  out[k]={tab:l.tabLabel||l.title||k,count:!l.excludeFromCount,cards:l.phrases.filter(p=>p.it&&p.et).map(p=>({id:p.id,it:plain(p.it),et:plain(p.et),pron:p.pron||'',lit:plain(p.lit),group:plain(p.group),spoiler:plain(p.spoiler),ex:plain(p.ex)}))};n+=out[k].cards.length}
+  out[k]={tab:l.tabLabel||l.title||k,count:!l.excludeFromCount,cards:l.phrases.filter(p=>p.it&&p.et&&!p.paused).map(p=>({id:p.id,it:plain(p.it),et:plain(p.et),pron:p.pron||'',lit:plain(p.lit),group:plain(p.group),spoiler:plain(p.spoiler),ex:plain(p.ex)}))};n+=out[k].cards.length}
  D.lessons=out;D.at=new Date().toLocaleDateString('et-EE');D.v=2;save();home('Imporditud: '+n+' kaarti, '+Object.keys(out).length+' lehte. Tulemused säilisid.')}catch(e){home('Import ebaõnnestus: '+e.message)}}
 /* ---- hindamine (sama loogika mis õpiku 🎤 harjutuses) ---- */
 const ART=new Set(['il','lo','la','l','i','gli','le','un','uno','una']);
